@@ -1,5 +1,7 @@
 package com.dsj.esdemo.util;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import lombok.extern.log4j.Log4j2;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -28,16 +30,24 @@ public class EsUtil {
 
     @Autowired
     private RestHighLevelClient client;
+    @Autowired
+    private EsSearchUtil esSearchUtil;
 
     private String getUUID() {
         return UUID.randomUUID().toString();
     }
 
-    public void get(String index, String id) throws Exception {
+    /**
+     * 获取指定的文档
+     * @param index 索引名称
+     * @param id    文档id
+     * @return JSONObject
+     */
+    public JSONObject getDocument(String index, String id) throws Exception {
 
         if (!isIndexExist(index)) {
             log.warn("不存在该索引，index：{}", index);
-            return;
+            return null;
         }
 
         GetRequest getRequest = new GetRequest(index, id);
@@ -45,11 +55,10 @@ public class EsUtil {
         Map<String, Object> map = getResponse.getSource();
         if (map == null) {
             log.warn("不存在该文档，id：{}", id);
-            return;
+            return null;
         }
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            System.out.println(entry.getKey() + " --- " + entry.getValue());
-        }
+
+        return (JSONObject) JSON.toJSON(map);
     }
 
     /**
@@ -57,14 +66,14 @@ public class EsUtil {
      * @param index 索引名称
      * @return  存在true，不存在false
      */
-    private boolean isIndexExist(String index) {
+    private Boolean isIndexExist(String index) {
         boolean exists = false;
         GetIndexRequest request = new GetIndexRequest(index);
 
         try {
             exists = client.indices().exists(request, RequestOptions.DEFAULT);
         } catch (IOException e) {
-            log.error("查询索引是否存在时报错：{}", e.getMessage());
+            log.error("查询索引是否存在时发生异常：{}", e.getMessage());
         }
 
         return exists;
@@ -72,8 +81,10 @@ public class EsUtil {
 
     /**
      * 创建索引
+     * @param index 索引名称
+     * @return 成功true，失败false
      */
-    public boolean createIndex(String index) {
+    public Boolean createIndex(String index) {
         String result = null;
 
         if (isIndexExist(index)) {
@@ -86,7 +97,7 @@ public class EsUtil {
             CreateIndexResponse response = client.indices().create(request, RequestOptions.DEFAULT);
             result = response.index();
         } catch (IOException e) {
-            log.error("创建索引时报错：{}", e.getMessage());
+            log.error("创建索引时发生异常：{}", e.getMessage());
         }
 
         if (index.equals(result)) {
@@ -103,7 +114,7 @@ public class EsUtil {
      * @param index 索引名称
      * @return  删除成功true，删除失败false
      */
-    public boolean deleteIndex(String index) {
+    public Boolean deleteIndex(String index) {
         Boolean result = null;
         if (!isIndexExist(index)) {
             log.error("索引 {} 不存在!", index);
@@ -115,7 +126,7 @@ public class EsUtil {
             AcknowledgedResponse deleteResponse = client.indices().delete(request, RequestOptions.DEFAULT);
             result = deleteResponse.isAcknowledged();
         } catch (IOException e) {
-            log.warn("删除索引 {} 发生异常", index);
+            log.warn("删除索引 {} 发生异常：{}", index, e.getMessage());
         }
 
         if (result) {
@@ -135,8 +146,14 @@ public class EsUtil {
      * @param jsonString    json格式的文档内容
      * @return 新增成功true，新增失败false
      */
-    public boolean addDocument(String index, String id, String jsonString) {
+    public Boolean addDocument(String index, String id, String title, String jsonString) {
         String result = null;
+
+        if (esSearchUtil.isDocumentTitleExist(index, title)){
+            log.info("新增文档失败! 已存在 title：{} ", title);
+            return false;
+        }
+
         IndexRequest request = new IndexRequest(index)
                 .id(id)
                 .source(jsonString, XContentType.JSON);
@@ -162,7 +179,7 @@ public class EsUtil {
      * @param id    文档id
      * @return  删除成功true，删除失败false
      */
-    public boolean deleteDocument(String index, String id) {
+    public Boolean deleteDocument(String index, String id) {
         String result = null;
         DeleteRequest deleteRequest = new DeleteRequest()
                 .index(index)
@@ -171,7 +188,7 @@ public class EsUtil {
             DeleteResponse deleteResponse = client.delete(deleteRequest, RequestOptions.DEFAULT);
             result = deleteResponse.getId();
         } catch (IOException e) {
-            log.warn("删除文档 {} 发生异常", e.getMessage());
+            log.warn("删除文档发生异常：{}", e.getMessage());
         }
 
         if (id.equals(result)){

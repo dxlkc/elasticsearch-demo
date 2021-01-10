@@ -1,7 +1,9 @@
 package com.dsj.esdemo.controller;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.dsj.esdemo.model.Knowledge;
+import com.dsj.esdemo.util.EsSearchUtil;
 import com.dsj.esdemo.util.EsUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,10 +17,13 @@ public class TestController {
 
     @Autowired
     public EsUtil esUtil;
+    @Autowired
+    public EsSearchUtil esSearchUtil;
 
     @PostMapping("/get")
-    public void test(@RequestParam String index, @RequestParam String id) throws Exception {
-        esUtil.get(index, id);
+    public String test(@RequestParam String index, @RequestParam String id) throws Exception {
+        JSONObject jsonObject = esUtil.getDocument(index, id);
+        return JSONObject.toJSONString(jsonObject);
     }
 
     @PostMapping("/index/create")
@@ -40,11 +45,16 @@ public class TestController {
                 .build();
         String jsonString = JSON.toJSONString(knowledge);
         System.out.println(jsonString);
-        return esUtil.addDocument(index, knowledge.getId(), jsonString);
+        return esUtil.addDocument(index, knowledge.getId(), title, jsonString);
     }
 
     @PostMapping("/document/delete")
     public boolean deleteDocument(@RequestParam String index, @RequestParam String id) {
         return esUtil.deleteDocument(index, id);
+    }
+
+    @PostMapping("/document/exist")
+    public boolean isDocumentExist(@RequestParam String index, @RequestParam String title) {
+        return esSearchUtil.isDocumentTitleExist(index, title);
     }
 }
