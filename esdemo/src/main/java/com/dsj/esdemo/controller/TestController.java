@@ -2,6 +2,7 @@ package com.dsj.esdemo.controller;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.dsj.esdemo.model.Document;
 import com.dsj.esdemo.model.Knowledge;
 import com.dsj.esdemo.util.EsSearchUtil;
 import com.dsj.esdemo.util.EsUtil;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -39,13 +41,12 @@ public class TestController {
     @PostMapping("/document/add")
     public boolean addDocument(@RequestParam String index, @RequestParam String title, @RequestParam String content) {
         Knowledge knowledge = Knowledge.builder()
-                .id(UUID.randomUUID().toString())
                 .title(title)
                 .content(content)
                 .build();
         String jsonString = JSON.toJSONString(knowledge);
         System.out.println(jsonString);
-        return esUtil.addDocument(index, knowledge.getId(), title, jsonString);
+        return esUtil.addDocument(index, UUID.randomUUID().toString(), title, jsonString);
     }
 
     @PostMapping("/document/delete")
@@ -56,5 +57,12 @@ public class TestController {
     @PostMapping("/document/exist")
     public boolean isDocumentExist(@RequestParam String index, @RequestParam String title) {
         return esSearchUtil.isDocumentTitleExist(index, title);
+    }
+
+    @PostMapping("/find/all")
+    public String fuzzySearchByTitleAndContent(@RequestParam String index, @RequestParam String searchInfo,
+                                             @RequestParam Integer page, @RequestParam Integer pageSize) {
+        List<Document> result = esSearchUtil.fuzzySearchByTitleAndContent(index, searchInfo, page, pageSize);
+        return JSON.toJSONString(result);
     }
 }

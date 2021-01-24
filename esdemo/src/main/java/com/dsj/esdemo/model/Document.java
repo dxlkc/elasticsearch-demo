@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Knowledge {
-    private String title;
-    private String content;
+public class Document {
+    private String id;
+    private Object document;
 }
