@@ -1,14 +1,16 @@
 package com.dsj.esdemo.util;
 
-import com.alibaba.fastjson.JSONObject;
 import com.dsj.esdemo.model.Document;
 import com.dsj.esdemo.model.Knowledge;
 import lombok.extern.log4j.Log4j2;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.GetAliasesResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
@@ -23,6 +25,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Log4j2
 @Component
@@ -119,8 +122,55 @@ public class EsSearchUtil {
      * @param pageSize 当前页内容数量
      * @return
      */
-    public JSONObject fullSearch(String page, String pageSize) {
+    public List<Document> fullSearch(Integer page, Integer pageSize) {
+        List<String> indexes = new ArrayList<>();
+        List<Document> resultList = new ArrayList<>();
+        try {
+            GetAliasesRequest request = new GetAliasesRequest();
+            GetAliasesResponse getAliasesResponse =  client.indices().getAlias(request,RequestOptions.DEFAULT);
+            Map<String, Set<AliasMetadata>> map = getAliasesResponse.getAliases();
+            Set<String> indices = map.keySet();
+            for (String index : indices) {
+                if (!index.startsWith(".")) {
+                    indexes.add(index);
+                }
+            }
 
-        return null;
+            SearchRequest searchRequest = new SearchRequest(indexes.toArray(new String[indexes.size()]));
+            SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+            QueryBuilder queryBuilder = QueryBuilders.matchAllQuery();
+            sourceBuilder.query(queryBuilder);
+            sourceBuilder.sort(new ScoreSortBuilder().order(SortOrder.DESC));
+            // 分页
+            sourceBuilder.from(page);
+            sourceBuilder.size(pageSize);
+            searchRequest.source(sourceBuilder);
+
+            try {
+                SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+                SearchHits hits = searchResponse.getHits();
+                SearchHit[] searchHits = hits.getHits();
+                for (SearchHit hit : searchHits) {
+                    Map<String, Object> map2 = hit.getSourceAsMap();
+                    Knowledge knowledge = Knowledge.builder()
+                            .title(map2.get("title").toString())
+                            .content(map2.get("content").toString())
+                            .build();
+                    Document document = Document.builder()
+                            .id(hit.getId())
+                            .document(knowledge)
+                            .build();
+                    resultList.add(document);
+                }
+            } catch (ElasticsearchException e) {
+                log.warn("fuzzySearchByTitleAndContent发生异常! \n status:{} \n detail:{}", e.status().getStatus(), e.getDetailedMessage());
+            } catch (IOException e) {
+                log.warn("fuzzySearchByTitleAndContent发生异常! \n {}", e.getMessage());
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return resultList;
     }
 }

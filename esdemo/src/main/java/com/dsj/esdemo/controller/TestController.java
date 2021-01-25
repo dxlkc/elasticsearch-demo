@@ -65,4 +65,10 @@ public class TestController {
         List<Document> result = esSearchUtil.fuzzySearchByTitleAndContent(searchInfo, page, pageSize, index);
         return JSON.toJSONString(result);
     }
+
+    @PostMapping("/find/full")
+    public String fullSearch(@RequestParam Integer page, @RequestParam Integer pageSize) {
+        List<Document> result = esSearchUtil.fullSearch(page, pageSize);
+        return JSON.toJSONString(result);
+    }
 }
