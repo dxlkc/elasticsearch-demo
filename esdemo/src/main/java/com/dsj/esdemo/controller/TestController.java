@@ -60,9 +60,9 @@ public class TestController {
     }
 
     @PostMapping("/find/all")
-    public String fuzzySearchByTitleAndContent(@RequestParam String index, @RequestParam String searchInfo,
-                                             @RequestParam Integer page, @RequestParam Integer pageSize) {
-        List<Document> result = esSearchUtil.fuzzySearchByTitleAndContent(index, searchInfo, page, pageSize);
+    public String fuzzySearchByTitleAndContent(@RequestParam String searchInfo, @RequestParam Integer page,
+                                               @RequestParam Integer pageSize, @RequestParam String[] index) {
+        List<Document> result = esSearchUtil.fuzzySearchByTitleAndContent(searchInfo, page, pageSize, index);
         return JSON.toJSONString(result);
     }
 }

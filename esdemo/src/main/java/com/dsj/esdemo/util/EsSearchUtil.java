@@ -65,7 +65,8 @@ public class EsSearchUtil {
     }
 
     /**
-     * 模糊查询，查询指定index中title、content和搜索信息匹配的文档（考虑和下面一个合并）
+     * 模糊查询，查询指定index中title、content和搜索信息匹配的文档
+     * index不定长
      * 分页查询，按照score降序排序
      *
      * @param searchInfo 用户搜索信息
@@ -73,7 +74,7 @@ public class EsSearchUtil {
      * @param pageSize   当前页内容数量
      * @return
      */
-    public List<Document> fuzzySearchByTitleAndContent(String index, String searchInfo, Integer page, Integer pageSize) {
+    public List<Document> fuzzySearchByTitleAndContent(String searchInfo, Integer page, Integer pageSize, String... index) {
         List<Document> resultList = new ArrayList<>();
         SearchRequest searchRequest = new SearchRequest(index);
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
@@ -101,6 +102,8 @@ public class EsSearchUtil {
                         .build();
                 resultList.add(document);
             }
+        } catch (ElasticsearchException e) {
+            log.warn("fuzzySearchByTitleAndContent发生异常! index:{} \n status:{} \n detail:{}", index, e.status().getStatus(), e.getDetailedMessage());
         } catch (IOException e) {
             log.warn("fuzzySearchByTitleAndContent发生异常! index:{} \n {}", index, e.getMessage());
         }
