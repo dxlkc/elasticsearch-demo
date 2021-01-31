@@ -1,7 +1,5 @@
 package com.dsj.esdemo.util;
 
-import com.dsj.esdemo.model.Document;
-import com.dsj.esdemo.model.Knowledge;
 import lombok.extern.log4j.Log4j2;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
@@ -68,66 +66,51 @@ public class EsSearchUtil {
     }
 
     /**
-     * 模糊查询，查询指定index中title、content和搜索信息匹配的文档
-     * index不定长
+     * 模糊查询，查询指定index中部分字段和搜索信息匹配的文档
      * 分页查询，按照score降序排序
      *
      * @param searchInfo 用户搜索信息
-     * @param page       需要返回的当前页数（从0开始）
-     * @param pageSize   当前页内容数量
+     * @param page       从第几条开始算起
+     * @param pageSize   截取的条数
      * @return
      */
-    public List<Document> fuzzySearchByTitleAndContent(String searchInfo, Integer page, Integer pageSize, String... index) {
-        List<Document> resultList = new ArrayList<>();
-        SearchRequest searchRequest = new SearchRequest(index);
+    public SearchHits fuzzySearch(String[] indexes, String[] fields, String searchInfo, Integer page, Integer pageSize) {
+        SearchRequest searchRequest = new SearchRequest(indexes);
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-        QueryBuilder queryBuilder = QueryBuilders.multiMatchQuery(searchInfo, "title", "content");
+        QueryBuilder queryBuilder = QueryBuilders.multiMatchQuery(searchInfo, fields);
         sourceBuilder.query(queryBuilder);
         sourceBuilder.sort(new ScoreSortBuilder().order(SortOrder.DESC));
-        // 分页
         sourceBuilder.from(page);
         sourceBuilder.size(pageSize);
         searchRequest.source(sourceBuilder);
 
+        SearchHits hits = null;
         try {
             SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
-            SearchHits hits = searchResponse.getHits();
-            SearchHit[] searchHits = hits.getHits();
-            for (SearchHit hit : searchHits) {
-                Map<String, Object> map = hit.getSourceAsMap();
-                Knowledge knowledge = Knowledge.builder()
-                        .title(map.get("title").toString())
-                        .content(map.get("content").toString())
-                        .build();
-                Document document = Document.builder()
-                        .id(hit.getId())
-                        .document(knowledge)
-                        .build();
-                resultList.add(document);
-            }
+            hits = searchResponse.getHits();
         } catch (ElasticsearchException e) {
-            log.warn("fuzzySearchByTitleAndContent发生异常! index:{} \n status:{} \n detail:{}", index, e.status().getStatus(), e.getDetailedMessage());
+            log.warn("fuzzySearch发生异常! index:{} \n status:{} \n detail:{}", indexes, e.status().getStatus(), e.getDetailedMessage());
         } catch (IOException e) {
-            log.warn("fuzzySearchByTitleAndContent发生异常! index:{} \n {}", index, e.getMessage());
+            log.warn("fuzzySearch发生异常! index:{} \n {}", indexes, e.getMessage());
         }
 
-        return resultList;
+        return hits;
     }
 
     /**
      * 全量查询，查询所有收集的文档
      * 分页查询，（按照索引名称降序排序）
      *
-     * @param page     需要返回的当前页数
-     * @param pageSize 当前页内容数量
+     * @param page     从第几条开始算起
+     * @param pageSize 截取的条数
      * @return
      */
-    public List<Document> fullSearch(Integer page, Integer pageSize) {
+    public SearchHits fullSearch(Integer page, Integer pageSize) {
         List<String> indexes = new ArrayList<>();
-        List<Document> resultList = new ArrayList<>();
+        SearchHits hits = null;
         try {
             GetAliasesRequest request = new GetAliasesRequest();
-            GetAliasesResponse getAliasesResponse =  client.indices().getAlias(request,RequestOptions.DEFAULT);
+            GetAliasesResponse getAliasesResponse = client.indices().getAlias(request, RequestOptions.DEFAULT);
             Map<String, Set<AliasMetadata>> map = getAliasesResponse.getAliases();
             Set<String> indices = map.keySet();
             for (String index : indices) {
@@ -141,36 +124,22 @@ public class EsSearchUtil {
             QueryBuilder queryBuilder = QueryBuilders.matchAllQuery();
             sourceBuilder.query(queryBuilder);
             sourceBuilder.sort(new ScoreSortBuilder().order(SortOrder.DESC));
-            // 分页
             sourceBuilder.from(page);
             sourceBuilder.size(pageSize);
             searchRequest.source(sourceBuilder);
 
             try {
                 SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
-                SearchHits hits = searchResponse.getHits();
-                SearchHit[] searchHits = hits.getHits();
-                for (SearchHit hit : searchHits) {
-                    Map<String, Object> map2 = hit.getSourceAsMap();
-                    Knowledge knowledge = Knowledge.builder()
-                            .title(map2.get("title").toString())
-                            .content(map2.get("content").toString())
-                            .build();
-                    Document document = Document.builder()
-                            .id(hit.getId())
-                            .document(knowledge)
-                            .build();
-                    resultList.add(document);
-                }
+                hits = searchResponse.getHits();
             } catch (ElasticsearchException e) {
-                log.warn("fuzzySearchByTitleAndContent发生异常! \n status:{} \n detail:{}", e.status().getStatus(), e.getDetailedMessage());
+                log.warn("fullSearch发生异常! \n status:{} \n detail:{}", e.status().getStatus(), e.getDetailedMessage());
             } catch (IOException e) {
-                log.warn("fuzzySearchByTitleAndContent发生异常! \n {}", e.getMessage());
+                log.warn("fullSearch发生异常! \n {}", e.getMessage());
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return resultList;
+        return hits;
     }
 }

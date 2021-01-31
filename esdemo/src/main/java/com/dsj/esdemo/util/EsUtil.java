@@ -115,7 +115,7 @@ public class EsUtil {
      * @return  删除成功true，删除失败false
      */
     public Boolean deleteIndex(String index) {
-        Boolean result = null;
+        boolean result = false;
         if (!isIndexExist(index)) {
             log.error("索引 {} 不存在!", index);
             return false;
@@ -136,7 +136,6 @@ public class EsUtil {
             log.info("删除索引 {} 失败", index);
             return false;
         }
-
     }
 
     /**

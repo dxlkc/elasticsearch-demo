@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.dsj.esdemo.model.Document;
 import com.dsj.esdemo.model.Knowledge;
+import com.dsj.esdemo.service.SearchService;
 import com.dsj.esdemo.util.EsSearchUtil;
 import com.dsj.esdemo.util.EsUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,8 @@ public class TestController {
     public EsUtil esUtil;
     @Autowired
     public EsSearchUtil esSearchUtil;
+    @Autowired
+    public SearchService searchService;
 
     @PostMapping("/get")
     public String test(@RequestParam String index, @RequestParam String id) throws Exception {
@@ -60,15 +63,16 @@ public class TestController {
     }
 
     @PostMapping("/find/all")
-    public String fuzzySearchByTitleAndContent(@RequestParam String searchInfo, @RequestParam Integer page,
-                                               @RequestParam Integer pageSize, @RequestParam String[] index) {
-        List<Document> result = esSearchUtil.fuzzySearchByTitleAndContent(searchInfo, page, pageSize, index);
+    public String fuzzySearchByTitleAndContent(@RequestParam String[] indexes, @RequestParam String[] fields,
+                                               @RequestParam String searchInfo, @RequestParam Integer page,
+                                               @RequestParam Integer pageSize) {
+        List<Document> result = searchService.fuzzySearch(indexes, fields, searchInfo, page, pageSize);
         return JSON.toJSONString(result);
     }
 
     @PostMapping("/find/full")
     public String fullSearch(@RequestParam Integer page, @RequestParam Integer pageSize) {
-        List<Document> result = esSearchUtil.fullSearch(page, pageSize);
+        List<Document> result = searchService.fullSearch(page, pageSize);
         return JSON.toJSONString(result);
     }
 }
